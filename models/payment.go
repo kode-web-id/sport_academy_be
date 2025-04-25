@@ -15,6 +15,7 @@ type Payment struct {
 	Note     string  `json:"note"`
 	Photo    string  `json:"photo"`
 	Invoice  string  `json:"invoice"` // ← new column
+	UserName string  `json:"user_name"`
 }
 
 type PaymentRequest struct {

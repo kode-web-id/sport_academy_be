@@ -152,8 +152,14 @@ func CreateBulkPaymentByEvent(c *gin.Context) {
 	// Buat Payment untuk setiap user
 	var createdPayments []models.Payment
 	for _, uid := range userIDs {
+		var user models.User
+		if err := config.DB.Select("name").First(&user, uid).Error; err != nil {
+			continue // skip kalau user tidak ditemukan
+		}
+
 		payment := models.Payment{
 			UserID:   uid,
+			UserName: user.Name, // <-- tambahkan user name
 			VendorID: input.VendorID,
 			EventID:  &input.EventID,
 			Amount:   input.Amount,
