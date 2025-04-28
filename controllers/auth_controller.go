@@ -19,6 +19,7 @@ func Register(c *gin.Context) {
 		return
 	}
 
+	// Cek format email
 	emailRegex := `^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$`
 	matched, err := regexp.MatchString(emailRegex, input.Email)
 	if err != nil || !matched {
@@ -26,6 +27,23 @@ func Register(c *gin.Context) {
 		return
 	}
 
+	// Cek apakah email sudah terdaftar
+	var existingUser models.User
+	if err := config.DB.Where("email = ?", input.Email).First(&existingUser).Error; err == nil {
+		response.JSONErrorResponse(c.Writer, false, http.StatusBadRequest, "Email sudah terdaftar")
+		return
+	}
+
+	// Cek apakah telephone sudah terdaftar
+	if input.Phone != "" {
+		var existingPhone models.User
+		if err := config.DB.Where("phone = ?", input.Phone).First(&existingPhone).Error; err == nil {
+			response.JSONErrorResponse(c.Writer, false, http.StatusBadRequest, "Nomor telepon sudah terdaftar")
+			return
+		}
+	}
+
+	// Hash password
 	hashed, err := utils.HasingPassword(input.Password)
 	if err != nil {
 		response.JSONErrorResponse(c.Writer, false, http.StatusInternalServerError, "Failed to hash password")
@@ -33,17 +51,17 @@ func Register(c *gin.Context) {
 	}
 	input.Password = hashed
 
-	// Fetch vendor information if VendorID is provided
+	// Fetch vendor if ada
 	if input.VendorID != 0 {
 		var vendor models.Vendor
 		if err := config.DB.First(&vendor, input.VendorID).Error; err != nil {
 			response.JSONErrorResponse(c.Writer, false, http.StatusNotFound, "Vendor not found")
 			return
 		}
-		// Set the Vendor in the User struct (optional)
 		input.Vendor = vendor
 	}
 
+	// Create user
 	if err := config.DB.Create(&input).Error; err != nil {
 		response.JSONErrorResponse(c.Writer, false, http.StatusInternalServerError, "Failed to create user")
 		return
@@ -51,7 +69,7 @@ func Register(c *gin.Context) {
 
 	input.Password = ""
 
-	// Return the user along with vendor details
+	// Success response
 	response.JSONSuccess(c.Writer, true, http.StatusCreated, input)
 }
 
