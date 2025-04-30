@@ -15,6 +15,7 @@ func SetupRoutes(router *gin.Engine) {
 		api.POST("/register", controllers.Register)
 		api.GET("/vendor", controllers.GetVendors)
 		api.POST("/vendor/create", controllers.CreateVendor)
+		api.DELETE("/vendor/:id", controllers.DeleteVendorByID)
 
 		// Protected routes with JWT middleware
 		protected := api.Group("", middleware.JWTAuthMiddleware())
@@ -27,6 +28,7 @@ func SetupRoutes(router *gin.Engine) {
 			protected.PUT("/user/foto", controllers.UpdateUserPhoto)
 			protected.PUT("/vendor/foto", controllers.UpdateVendorPhoto)
 			protected.PUT("/vendor/bank", controllers.UpdateVendorBank)
+			protected.PUT("/user/update", controllers.UpdateUser)
 
 			// Payments
 			protected.GET("/payments/user", controllers.GetPaymentsUser)
@@ -61,6 +63,7 @@ func SetupRoutes(router *gin.Engine) {
 			protected.POST("/event-log/create", controllers.CreateEventLog)
 			protected.GET("/event-logs/user", controllers.GetEventLogsByUser)
 			protected.PUT("/event-log/status", controllers.UpdateEventLogStatus)
+			protected.PUT("/events/finish", controllers.UpdateEventFinishStatus)
 
 		}
 

@@ -9,6 +9,7 @@ import (
 	"ssb_api/models"
 	"ssb_api/models/response"
 	"ssb_api/utils"
+	"strconv"
 	"strings"
 	"time"
 
@@ -204,4 +205,31 @@ func UpdateVendorBank(c *gin.Context) {
 
 	// Return success response
 	response.JSONSuccess(c.Writer, true, http.StatusOK, "Update bank succesfully")
+}
+func DeleteVendorByID(c *gin.Context) {
+	// Ambil ID dari parameter URL
+	vendorID := c.Param("id")
+
+	// Validasi ID dan konversi ke uint
+	id, err := strconv.ParseUint(vendorID, 10, 64)
+	if err != nil {
+		response.JSONErrorResponse(c.Writer, false, http.StatusBadRequest, "Invalid vendor ID")
+		return
+	}
+
+	// Cek apakah vendor ada
+	var vendor models.Vendor
+	if err := config.DB.First(&vendor, uint(id)).Error; err != nil {
+		response.JSONErrorResponse(c.Writer, false, http.StatusNotFound, "Vendor not found")
+		return
+	}
+
+	// Soft delete vendor (jika pakai GORM model dengan DeletedAt)
+	if err := config.DB.Delete(&vendor).Error; err != nil {
+		response.JSONErrorResponse(c.Writer, false, http.StatusInternalServerError, "Failed to delete vendor")
+		return
+	}
+
+	// Berhasil
+	response.JSONSuccess(c.Writer, true, http.StatusOK, "Vendor deleted successfully")
 }

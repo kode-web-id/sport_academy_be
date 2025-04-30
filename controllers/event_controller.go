@@ -22,6 +22,7 @@ func CreateEvent(c *gin.Context) {
 		response.JSONErrorResponse(c.Writer, false, http.StatusNotFound, "Vendor not found")
 		return
 	}
+	input.IsFinish = false
 
 	// Menyimpan Event baru
 	if err := config.DB.Create(&input).Error; err != nil {
@@ -37,6 +38,7 @@ func GetEvents(c *gin.Context) {
 	limit := c.DefaultQuery("limit", "10")
 	eventType := c.DefaultQuery("event_type", "")
 	isPaid := c.DefaultQuery("is_paid", "")
+	id := c.DefaultQuery("id", "")
 
 	pageInt, _ := strconv.Atoi(page)
 	limitInt, _ := strconv.Atoi(limit)
@@ -58,6 +60,9 @@ func GetEvents(c *gin.Context) {
 	if eventType != "" {
 		query = query.Where("event_type = ?", eventType)
 	}
+	if id != "" {
+		query = query.Where("id = ?", id)
+	}
 	if isPaid != "" {
 		isPaidBool, _ := strconv.ParseBool(isPaid)
 		query = query.Where("is_paid = ?", isPaidBool)
@@ -77,6 +82,34 @@ func GetEvents(c *gin.Context) {
 		"pagination": pagination,
 		"events":     events,
 	})
+}
+
+func UpdateEventFinishStatus(c *gin.Context) {
+	type FinishUpdateInput struct {
+		ID       uint `json:"id"`
+		IsFinish bool `json:"is_finish"`
+	}
+
+	var input FinishUpdateInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response.JSONErrorResponse(c.Writer, false, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	var event models.Event
+	if err := config.DB.First(&event, input.ID).Error; err != nil {
+		response.JSONErrorResponse(c.Writer, false, http.StatusNotFound, "Event not found")
+		return
+	}
+
+	event.IsFinish = input.IsFinish
+
+	if err := config.DB.Save(&event).Error; err != nil {
+		response.JSONErrorResponse(c.Writer, false, http.StatusInternalServerError, "Failed to update event status")
+		return
+	}
+
+	response.JSONSuccess(c.Writer, true, http.StatusOK, event)
 }
 
 func CreateEventLog(c *gin.Context) {

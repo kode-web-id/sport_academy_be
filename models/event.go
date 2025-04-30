@@ -15,6 +15,8 @@ type Event struct {
 	PaymentType   string  `json:"payment_type"` // daily, monthly
 	Fee           float64 `json:"fee"`
 	VendorID      uint    `json:"vendor_id"`
+	IsFinish      bool    `json:"is_finish"`
+
 	// Vendor        Vendor  `gorm:"foreignKey:VendorID"`
 	// Users []User `gorm:"many2many:event_participants"`
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"regexp"
 	"ssb_api/config"
 	"ssb_api/models"
 	"ssb_api/models/response"
@@ -330,4 +331,89 @@ func GetUsersByVendor(c *gin.Context) {
 	}
 
 	response.JSONSuccess(c.Writer, true, http.StatusOK, result)
+}
+
+func UpdateUser(c *gin.Context) {
+	var input models.User
+
+	// Bind body JSON ke struct input
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response.JSONErrorResponse(c.Writer, false, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	if input.ID == 0 {
+		response.JSONErrorResponse(c.Writer, false, http.StatusBadRequest, "User ID wajib diisi")
+		return
+	}
+
+	// Ambil user berdasarkan ID
+	var user models.User
+	if err := config.DB.First(&user, input.ID).Error; err != nil {
+		response.JSONErrorResponse(c.Writer, false, http.StatusNotFound, "User not found")
+		return
+	}
+
+	// Cek format email jika diubah
+	if input.Email != "" && input.Email != user.Email {
+		emailRegex := `^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$`
+		matched, err := regexp.MatchString(emailRegex, input.Email)
+		if err != nil || !matched {
+			response.JSONErrorResponse(c.Writer, false, http.StatusBadRequest, "Invalid email format")
+			return
+		}
+		var existingUser models.User
+		if err := config.DB.Where("email = ?", input.Email).Not("id = ?", input.ID).First(&existingUser).Error; err == nil {
+			response.JSONErrorResponse(c.Writer, false, http.StatusBadRequest, "Email sudah terdaftar")
+			return
+		}
+		user.Email = input.Email
+	}
+
+	// Cek nomor telepon jika diubah
+	if input.Phone != "" && input.Phone != user.Phone {
+		var existingPhone models.User
+		if err := config.DB.Where("phone = ?", input.Phone).Not("id = ?", input.ID).First(&existingPhone).Error; err == nil {
+			response.JSONErrorResponse(c.Writer, false, http.StatusBadRequest, "Nomor telepon sudah terdaftar")
+			return
+		}
+		user.Phone = input.Phone
+	}
+
+	// Jika password diubah
+	if input.Password != "" {
+		hashed, err := utils.HasingPassword(input.Password)
+		if err != nil {
+			response.JSONErrorResponse(c.Writer, false, http.StatusInternalServerError, "Failed to hash password")
+			return
+		}
+		user.Password = hashed
+	}
+
+	// Update nama, role
+	if input.Name != "" {
+		user.Name = input.Name
+	}
+	if input.Role != "" {
+		user.Role = input.Role
+	}
+
+	// Update vendor jika berbeda
+	if input.VendorID != 0 && input.VendorID != user.VendorID {
+		var vendor models.Vendor
+		if err := config.DB.First(&vendor, input.VendorID).Error; err != nil {
+			response.JSONErrorResponse(c.Writer, false, http.StatusNotFound, "Vendor not found")
+			return
+		}
+		user.VendorID = vendor.ID
+	}
+
+	// Simpan perubahan
+	if err := config.DB.Save(&user).Error; err != nil {
+		response.JSONErrorResponse(c.Writer, false, http.StatusInternalServerError, "Failed to update user")
+		return
+	}
+
+	user.Password = ""
+	response.JSONSuccess(c.Writer, true, http.StatusOK, user)
 }
