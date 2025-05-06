@@ -36,13 +36,8 @@ func CreatePayment(c *gin.Context) {
 	fmt.Printf("Received Form Data: %+v\n", input)
 
 	// Get UserID from JWT token
-	userIDRaw, exists := c.Get("user_id")
-	if !exists {
-		response.JSONErrorResponse(c.Writer, false, http.StatusUnauthorized, "User ID not found in token")
-		return
-	}
-	userID := uint(userIDRaw.(float64)) // default JWT parsing returns float64
 
+	userID := input.UserID
 	// Mengonversi PaymentRequest ke Payment
 	payment := models.Payment{
 		UserID:   userID,
