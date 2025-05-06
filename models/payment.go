@@ -28,5 +28,6 @@ type PaymentRequest struct {
 	Type     string  `form:"type"`
 	Date     string  `form:"date"`
 	Note     string  `form:"note"`
+	UserName string  `json:"user_name"`
 	Invoice  string  `form:"invoice"` // ← new field
 }

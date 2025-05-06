@@ -41,6 +41,7 @@ func CreatePayment(c *gin.Context) {
 	// Mengonversi PaymentRequest ke Payment
 	payment := models.Payment{
 		UserID:   userID,
+		UserName: input.UserName,
 		VendorID: input.VendorID,
 		EventID:  input.EventID,
 		Amount:   input.Amount,
