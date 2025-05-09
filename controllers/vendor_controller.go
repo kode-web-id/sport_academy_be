@@ -206,6 +206,70 @@ func UpdateVendorBank(c *gin.Context) {
 	// Return success response
 	response.JSONSuccess(c.Writer, true, http.StatusOK, "Update bank succesfully")
 }
+func UpdateVendorProfile(c *gin.Context) {
+	var input struct {
+		Name          string `json:"name"`
+		Description   string `json:"description"`
+		Email         string `json:"email"`
+		Phone         string `json:"phone"`
+		Address       string `json:"address"`
+		BankName      string `json:"bank_name"`
+		AccountName   string `json:"account_name"`
+		AccountNumber string `json:"account_number"`
+	}
+
+	// Binding request body
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response.JSONErrorResponse(c.Writer, false, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	// Get UserID from JWT token
+	userIDRaw, exists := c.Get("user_id")
+	if !exists {
+		response.JSONErrorResponse(c.Writer, false, http.StatusUnauthorized, "User ID not found in token")
+		return
+	}
+	userID := uint(userIDRaw.(float64))
+
+	// Retrieve user from database
+	var user models.User
+	if err := config.DB.First(&user, userID).Error; err != nil {
+		response.JSONErrorResponse(c.Writer, false, http.StatusNotFound, "User not found")
+		return
+	}
+
+	// Only pelatih can update vendor
+	if user.Role != "pelatih" {
+		response.JSONErrorResponse(c.Writer, false, http.StatusForbidden, "Only trainers can update vendor profile")
+		return
+	}
+
+	// Retrieve vendor
+	var vendor models.Vendor
+	if err := config.DB.First(&vendor, user.VendorID).Error; err != nil {
+		response.JSONErrorResponse(c.Writer, false, http.StatusNotFound, "Vendor not found")
+		return
+	}
+
+	// Update vendor info
+	vendor.Name = input.Name
+	vendor.Description = input.Description
+	vendor.Email = input.Email
+	vendor.Phone = input.Phone
+	vendor.Address = input.Address
+	vendor.BankName = input.BankName
+	vendor.BankAccount = input.AccountName
+	vendor.BankHolder = input.AccountNumber
+
+	if err := config.DB.Save(&vendor).Error; err != nil {
+		response.JSONErrorResponse(c.Writer, false, http.StatusInternalServerError, "Failed to update vendor profile")
+		return
+	}
+
+	response.JSONSuccess(c.Writer, true, http.StatusOK, "Vendor profile updated successfully")
+}
+
 func DeleteVendorByID(c *gin.Context) {
 	// Ambil ID dari parameter URL
 	vendorID := c.Param("id")

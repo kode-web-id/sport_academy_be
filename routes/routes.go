@@ -28,6 +28,7 @@ func SetupRoutes(router *gin.Engine) {
 			protected.PUT("/user/foto", controllers.UpdateUserPhoto)
 			protected.PUT("/vendor/foto", controllers.UpdateVendorPhoto)
 			protected.PUT("/vendor/bank", controllers.UpdateVendorBank)
+			protected.PUT("/vendor/update", controllers.UpdateVendorProfile)
 			protected.PUT("/user/update", controllers.UpdateUser)
 
 			// Payments
