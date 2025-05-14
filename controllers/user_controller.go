@@ -113,18 +113,27 @@ func SearchUsers(c *gin.Context) {
 		}
 
 		userResponses[i] = gin.H{
-			"id":        user.ID,
-			"name":      user.Name,
-			"email":     user.Email,
-			"role":      user.Role,
-			"phone":     user.Phone,
-			"address":   user.Address,
-			"gender":    user.Gender,
-			"birthDate": user.BirthDate,
-			"vendor_id": user.VendorID,
-			"photo":     user.Photo, // Menambahkan foto dengan base URL
-			"Vendor":    user.Vendor,
+			"id":           user.ID,
+			"name":         user.Name,
+			"email":        user.Email,
+			"role":         user.Role,
+			"phone":        user.Phone,
+			"address":      user.Address,
+			"gender":       user.Gender,
+			"birthDate":    user.BirthDate,
+			"status":       user.Status,
+			"vendor_id":    user.VendorID,
+			"vendor":       user.Vendor,
+			"photo":        user.Photo,
+			"position":     user.Position,
+			"foot":         user.Foot,
+			"number":       user.Number,
+			"age_category": user.AgeCategory,
+			"star":         user.Star,
+			"created_at":   user.CreatedAt,
+			"updated_at":   user.UpdatedAt,
 		}
+
 	}
 
 	result := gin.H{
@@ -181,17 +190,27 @@ func GetAllUsers(c *gin.Context) {
 		}
 
 		userResponses[i] = gin.H{
-			"id":        user.ID,
-			"name":      user.Name,
-			"email":     user.Email,
-			"role":      user.Role,
-			"phone":     user.Phone,
-			"address":   user.Address,
-			"gender":    user.Gender,
-			"birthDate": user.BirthDate,
-			"vendor_id": user.VendorID,
-			"photo":     user.Photo, // Menambahkan foto dengan base URL
-			"Vendor":    user.Vendor}
+			"id":           user.ID,
+			"name":         user.Name,
+			"email":        user.Email,
+			"role":         user.Role,
+			"phone":        user.Phone,
+			"address":      user.Address,
+			"gender":       user.Gender,
+			"birthDate":    user.BirthDate,
+			"status":       user.Status,
+			"vendor_id":    user.VendorID,
+			"vendor":       user.Vendor,
+			"photo":        user.Photo,
+			"position":     user.Position,
+			"foot":         user.Foot,
+			"number":       user.Number,
+			"age_category": user.AgeCategory,
+			"star":         user.Star,
+			"created_at":   user.CreatedAt,
+			"updated_at":   user.UpdatedAt,
+		}
+
 	}
 
 	result := gin.H{
@@ -309,17 +328,27 @@ func GetUsersByVendor(c *gin.Context) {
 		}
 
 		userResponses[i] = gin.H{
-			"id":        user.ID,
-			"name":      user.Name,
-			"email":     user.Email,
-			"role":      user.Role,
-			"phone":     user.Phone,
-			"address":   user.Address,
-			"gender":    user.Gender,
-			"birthDate": user.BirthDate,
-			"vendor_id": user.VendorID,
-			"photo":     user.Photo, // Menambahkan foto dengan base URL
+			"id":           user.ID,
+			"name":         user.Name,
+			"email":        user.Email,
+			"role":         user.Role,
+			"phone":        user.Phone,
+			"address":      user.Address,
+			"gender":       user.Gender,
+			"birthDate":    user.BirthDate,
+			"status":       user.Status,
+			"vendor_id":    user.VendorID,
+			"vendor":       user.Vendor,
+			"photo":        user.Photo,
+			"position":     user.Position,
+			"foot":         user.Foot,
+			"number":       user.Number,
+			"age_category": user.AgeCategory,
+			"star":         user.Star,
+			"created_at":   user.CreatedAt,
+			"updated_at":   user.UpdatedAt,
 		}
+
 	}
 
 	// Buat response
