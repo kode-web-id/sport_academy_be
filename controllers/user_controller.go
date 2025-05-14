@@ -426,6 +426,21 @@ func UpdateUser(c *gin.Context) {
 	if input.Role != "" {
 		user.Role = input.Role
 	}
+	if input.Position != "" {
+		user.Position = input.Position
+	}
+	if input.Foot != "" {
+		user.Foot = input.Foot
+	}
+	if input.Number != 0 {
+		user.Number = input.Number
+	}
+	if input.AgeCategory != "" {
+		user.AgeCategory = input.AgeCategory
+	}
+	if input.Star != 0 {
+		user.Star = input.Star
+	}
 
 	// Update vendor jika berbeda
 	if input.VendorID != 0 && input.VendorID != user.VendorID {
