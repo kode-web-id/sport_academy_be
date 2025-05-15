@@ -6,6 +6,7 @@ import (
 	"ssb_api/models"
 	"ssb_api/models/response"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -39,6 +40,10 @@ func GetEvents(c *gin.Context) {
 	eventType := c.DefaultQuery("event_type", "")
 	isPaid := c.DefaultQuery("is_paid", "")
 	id := c.DefaultQuery("id", "")
+	search := c.DefaultQuery("search", "")
+	date := c.DefaultQuery("date", "")
+	isFinish := c.DefaultQuery("is_finish", "")
+	paymentType := c.DefaultQuery("payment_type", "")
 
 	pageInt, _ := strconv.Atoi(page)
 	limitInt, _ := strconv.Atoi(limit)
@@ -57,19 +62,50 @@ func GetEvents(c *gin.Context) {
 
 	query := config.DB.Model(&models.Event{}).Preload("Users")
 
+	// Filter by Vendor
+	query = query.Where("vendor_id = ?", user.VendorID)
+
+	// Filter by Event Type
 	if eventType != "" {
 		query = query.Where("event_type = ?", eventType)
 	}
+
+	// Filter by ID
 	if id != "" {
 		query = query.Where("id = ?", id)
 	}
+
+	// Filter by IsPaid
 	if isPaid != "" {
 		isPaidBool, _ := strconv.ParseBool(isPaid)
 		query = query.Where("is_paid = ?", isPaidBool)
 	}
 
-	query = query.Where("vendor_id = ?", user.VendorID)
+	// Filter by IsFinish
+	if isFinish != "" {
+		isFinishBool, _ := strconv.ParseBool(isFinish)
+		query = query.Where("is_finish = ?", isFinishBool)
+	}
 
+	// Filter by PaymentType
+	if paymentType != "" {
+		query = query.Where("payment_type = ?", paymentType)
+	}
+
+	// Filter by Date (format: YYYY-MM-DD)
+	if date != "" {
+		query = query.Where("date = ?", date)
+	}
+
+	// Filter by Search: title, description, location
+	if search != "" {
+		like := "%" + strings.ToLower(search) + "%"
+		query = query.Where(`
+			LOWER(title) LIKE ? OR LOWER(description) LIKE ? OR LOWER(location) LIKE ?
+		`, like, like, like)
+	}
+
+	// Count & Paginate
 	query.Count(&totalEvents)
 	query.Offset((pageInt - 1) * limitInt).Limit(limitInt).Find(&events)
 
@@ -78,6 +114,7 @@ func GetEvents(c *gin.Context) {
 		"limit": limitInt,
 		"total": totalEvents,
 	}
+
 	response.JSONSuccess(c.Writer, true, http.StatusOK, gin.H{
 		"pagination": pagination,
 		"events":     events,
