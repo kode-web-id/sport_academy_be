@@ -406,8 +406,8 @@ func GetPaymentsByVendor(c *gin.Context) {
 	// Filtering
 
 	if search != "" {
-		like := "%" + search + "%"
-		query = query.Where("note ILIKE ?", like, like)
+		like := "%" + strings.ToLower(search) + "%"
+		query = query.Where("LOWER(note) LIKE ?", like)
 	}
 
 	if status != "" {
