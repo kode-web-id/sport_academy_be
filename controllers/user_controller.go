@@ -279,16 +279,21 @@ func GetUsersByVendor(c *gin.Context) {
 	limitStr := c.DefaultQuery("limit", "10")
 	vendorIDStr := c.DefaultQuery("vendor_id", "")
 
-	// Konversi page dan limit ke int
+	// Filter tambahan
+	search := c.Query("search")
+
+	foot := c.Query("foot")
+	sortBy := c.DefaultQuery("sort_by", "created_at")
+	sortOrder := strings.ToLower(c.DefaultQuery("sort_order", "desc"))
+
+	// Validasi dan konversi
 	page, err1 := strconv.Atoi(pageStr)
 	limit, err2 := strconv.Atoi(limitStr)
-
 	if err1 != nil || err2 != nil || page < 1 || limit < 1 {
 		response.JSONErrorResponse(c.Writer, false, http.StatusBadRequest, "Invalid page or limit")
 		return
 	}
 
-	// Validasi vendor_id
 	if vendorIDStr == "" {
 		response.JSONErrorResponse(c.Writer, false, http.StatusBadRequest, "Vendor ID is required")
 		return
@@ -302,27 +307,56 @@ func GetUsersByVendor(c *gin.Context) {
 
 	offset := (page - 1) * limit
 
-	// Query untuk mengambil data users berdasarkan VendorID
+	// Awal query
 	db := config.DB.Model(&models.User{}).Where("vendor_id = ?", vendorID)
 
-	// Hitung total users
+	// Filter tambahan
+	if search != "" {
+		like := "%" + search + "%"
+		db = db.Where("name ILIKE ? OR email ILIKE ?", like, like)
+	}
+
+	if foot != "" {
+		db = db.Where("foot = ?", foot)
+	}
+
+	// Validasi sort column
+	validSortColumns := map[string]bool{
+		"created_at": true,
+		"updated_at": true,
+		"name":       true,
+		"email":      true,
+	}
+
+	if !validSortColumns[sortBy] {
+		sortBy = "created_at"
+	}
+
+	if sortOrder != "asc" && sortOrder != "desc" {
+		sortOrder = "desc"
+	}
+
+	// Hitung total
 	if err := db.Count(&total).Error; err != nil {
 		response.JSONErrorResponse(c.Writer, false, http.StatusInternalServerError, "Failed to count users")
 		return
 	}
 
-	// Ambil data users
-	if err := db.Limit(limit).Offset(offset).Find(&users).Error; err != nil {
+	// Ambil data
+	if err := db.Preload("Vendor").
+		Order(fmt.Sprintf("%s %s", sortBy, sortOrder)).
+		Limit(limit).
+		Offset(offset).
+		Find(&users).Error; err != nil {
 		response.JSONErrorResponse(c.Writer, false, http.StatusInternalServerError, "Failed to get users")
 		return
 	}
 
+	// Format response
 	userResponses := make([]gin.H, len(users))
-	baseURL := utils.DotEnv("BASE_URL_F")
-	baseURL = strings.TrimRight(baseURL, "/") + "/" // Pastikan trailing slash ada
+	baseURL := strings.TrimRight(utils.DotEnv("BASE_URL_F"), "/") + "/"
 
 	for i, user := range users {
-		// Jika foto tidak kosong, tambahkan base URL
 		if user.Photo != "" {
 			user.Photo = baseURL + strings.TrimPrefix(user.Photo, "./")
 		}
@@ -348,10 +382,8 @@ func GetUsersByVendor(c *gin.Context) {
 			"created_at":   user.CreatedAt,
 			"updated_at":   user.UpdatedAt,
 		}
-
 	}
 
-	// Buat response
 	result := gin.H{
 		"total": total,
 		"page":  page,
