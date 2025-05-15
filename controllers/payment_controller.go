@@ -279,8 +279,8 @@ func GetPaymentsUser(c *gin.Context) {
 	query := config.DB.Where("user_id = ?", userID)
 
 	if search != "" {
-		like := "%" + search + "%"
-		query = query.Where("note ILIKE ?", like, like)
+		like := "%" + strings.ToLower(search) + "%"
+		query = query.Where("LOWER(note) LIKE ?", like)
 	}
 
 	if status != "" {
