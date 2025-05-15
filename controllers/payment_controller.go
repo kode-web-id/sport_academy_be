@@ -376,36 +376,42 @@ func GetPaymentsByVendor(c *gin.Context) {
 
 	limitStr := c.DefaultQuery("limit", "10")
 	pageStr := c.DefaultQuery("page", "1")
-	eventID := c.Query("event_id")
-	limit, _ := strconv.Atoi(limitStr)
-	page, _ := strconv.Atoi(pageStr)
-	offset := (page - 1) * limit
 
 	status := c.Query("status")
 	startDate := c.Query("start_date")
 	endDate := c.Query("end_date")
+	userName := c.Query("user_name")
 	sortBy := c.DefaultQuery("sort_by", "created_at")
 	sortOrder := strings.ToUpper(c.DefaultQuery("sort_order", "DESC"))
+
 	if sortOrder != "ASC" && sortOrder != "DESC" {
 		sortOrder = "DESC"
 	}
 
+	limit, _ := strconv.Atoi(limitStr)
+	page, _ := strconv.Atoi(pageStr)
+	offset := (page - 1) * limit
+
 	var payments []models.Payment
 	query := config.DB.Where("vendor_id = ?", vendorID)
 
+	// Filtering
 	if status != "" {
 		query = query.Where("status = ?", status)
 	}
+
+	if userName != "" {
+		query = query.Where("user_name ILIKE ?", "%"+userName+"%")
+	}
+
 	if startDate != "" {
 		query = query.Where("date >= ?", startDate)
 	}
 	if endDate != "" {
 		query = query.Where("date <= ?", endDate)
 	}
-	if eventID != "" {
-		query = query.Where("event_id = ?", eventID)
-	}
 
+	// Execute query
 	if err := query.
 		Order(fmt.Sprintf("%s %s", sortBy, sortOrder)).
 		Limit(limit).
@@ -414,10 +420,10 @@ func GetPaymentsByVendor(c *gin.Context) {
 		response.JSONErrorResponse(c.Writer, false, http.StatusInternalServerError, "Failed to fetch vendor payments")
 		return
 	}
+
+	// Add full photo path
 	baseURL := utils.DotEnv("BASE_URL_F")
-	// Add base URL to any file/photo URL in payments
 	for i := range payments {
-		// Jika foto vendor tidak kosong, hilangkan prefix './' dan gabungkan dengan base URL
 		if payments[i].Photo != "" {
 			payments[i].Photo = baseURL + "/" + strings.TrimPrefix(payments[i].Photo, "./")
 		}
