@@ -257,6 +257,8 @@ func GetPaymentsUser(c *gin.Context) {
 	var payments []models.Payment
 
 	// Optional: pagination
+	search := c.Query("search")
+
 	limitStr := c.DefaultQuery("limit", "10")
 	pageStr := c.DefaultQuery("page", "1")
 	limit, _ := strconv.Atoi(limitStr)
@@ -275,6 +277,11 @@ func GetPaymentsUser(c *gin.Context) {
 	}
 
 	query := config.DB.Where("user_id = ?", userID)
+
+	if search != "" {
+		like := "%" + search + "%"
+		query = query.Where("note ILIKE ?", like, like)
+	}
 
 	if status != "" {
 		query = query.Where("status = ?", status)
@@ -376,6 +383,7 @@ func GetPaymentsByVendor(c *gin.Context) {
 
 	limitStr := c.DefaultQuery("limit", "10")
 	pageStr := c.DefaultQuery("page", "1")
+	search := c.Query("search")
 
 	status := c.Query("status")
 	startDate := c.Query("start_date")
@@ -396,6 +404,12 @@ func GetPaymentsByVendor(c *gin.Context) {
 	query := config.DB.Where("vendor_id = ?", vendorID)
 
 	// Filtering
+
+	if search != "" {
+		like := "%" + search + "%"
+		query = query.Where("note ILIKE ?", like, like)
+	}
+
 	if status != "" {
 		query = query.Where("status = ?", status)
 	}
