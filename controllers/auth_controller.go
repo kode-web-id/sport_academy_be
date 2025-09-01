@@ -1,7 +1,10 @@
 package controllers
 
 import (
+	"context"
+	"errors"
 	"net/http"
+	"os"
 	"regexp"
 	"ssb_api/config"
 	"ssb_api/models"
@@ -10,6 +13,8 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
+	"gorm.io/gorm"
 )
 
 func Register(c *gin.Context) {
@@ -77,6 +82,7 @@ func Login(c *gin.Context) {
 	var input struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
+		FCMToken string `json:"fcm_token"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		response.JSONErrorResponse(c.Writer, false, http.StatusBadRequest, "Invalid request")
@@ -94,20 +100,23 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	token, err := utils.GenerateJWT(user.ID, user.Email)
+	if input.FCMToken != "" {
+		config.DB.Model(&user).Update("fcm_token", input.FCMToken)
+	}
+
+	// ✅ Generate access + refresh token
+	accessToken, refreshToken, err := utils.GenerateTokens(user.ID, user.Email)
 	if err != nil {
 		response.JSONErrorResponse(c.Writer, false, http.StatusInternalServerError, "Failed to generate token")
 		return
 	}
 
-	// Menghilangkan password dari response
-	user.Password = "" // Atau bisa menggunakan `user.Password = nil` jika tipe pointer
+	user.Password = ""
 	baseURL := utils.DotEnv("BASE_URL_F")
-
 	if user.Photo != "" {
-		// Bangun URL foto menggunakan baseURL yang didapat dari .env
 		user.Photo = baseURL + "/" + strings.TrimPrefix(user.Photo, "./")
 	}
+
 	result := gin.H{
 		"user": gin.H{
 			"id":        user.ID,
@@ -121,8 +130,142 @@ func Login(c *gin.Context) {
 			"photo":     user.Photo,
 			"vendor_id": user.VendorID,
 		},
-		"token": token,
+		"token":         accessToken,
+		"refresh_token": refreshToken,
 	}
 
 	response.JSONSuccess(c.Writer, true, http.StatusOK, result)
+}
+
+func RefreshToken(c *gin.Context) {
+	var req struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || req.RefreshToken == "" {
+		response.JSONErrorResponse(c.Writer, false, http.StatusBadRequest, "Missing refresh token")
+		return
+	}
+
+	// ✅ Parse refresh token
+	token, err := jwt.Parse(req.RefreshToken, func(token *jwt.Token) (interface{}, error) {
+		return []byte(os.Getenv("JWT_SECRET")), nil
+	})
+	if err != nil || !token.Valid {
+		response.JSONErrorResponse(c.Writer, false, http.StatusUnauthorized, "Invalid refresh token")
+		return
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || claims["user_id"] == nil || claims["email"] == nil {
+		response.JSONErrorResponse(c.Writer, false, http.StatusUnauthorized, "Invalid claims")
+		return
+	}
+
+	// ✅ Generate access token baru
+	accessToken, _, err := utils.GenerateTokens(uint(claims["user_id"].(float64)), claims["email"].(string))
+	if err != nil {
+		response.JSONErrorResponse(c.Writer, false, http.StatusInternalServerError, "Failed to generate access token")
+		return
+	}
+
+	response.JSONSuccess(c.Writer, true, http.StatusOK, gin.H{
+		"access_token": accessToken,
+	})
+}
+
+func FirebaseLogin(c *gin.Context) {
+	var input struct {
+		IDToken  string `json:"id_token" binding:"required"`
+		FCMToken string `json:"fcm_token"`
+	}
+
+	// 🔹 Validasi input
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response.JSONErrorResponse(c.Writer, false, http.StatusBadRequest, "Missing token")
+		return
+	}
+
+	ctx := context.Background()
+
+	// 🔹 Inisialisasi Firebase Auth
+	client, err := config.FirebaseApp.Auth(ctx)
+	if err != nil {
+		response.JSONErrorResponse(c.Writer, false, http.StatusInternalServerError, "Firebase not initialized")
+		return
+	}
+
+	// 🔹 Verifikasi ID token Firebase
+	token, err := client.VerifyIDToken(ctx, input.IDToken)
+	if err != nil {
+		response.JSONErrorResponse(c.Writer, false, http.StatusUnauthorized, "Invalid ID token")
+		return
+	}
+
+	// 🔹 Ambil email
+	emailClaim, ok := token.Claims["email"]
+	if !ok {
+		response.JSONErrorResponse(c.Writer, false, http.StatusUnauthorized, "Email not found in token")
+		return
+	}
+	email := emailClaim.(string)
+
+	// 🔹 Ambil nama & foto jika ada
+	name := ""
+	if val, ok := token.Claims["name"]; ok {
+		name = val.(string)
+	}
+
+	photo := ""
+	if val, ok := token.Claims["picture"]; ok {
+		photo = val.(string)
+	}
+
+	// 🔹 Cek apakah user sudah ada
+	var user models.User
+	err = config.DB.First(&user, "email = ?", email).Error
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		// 🆕 User baru
+		user = models.User{
+			Name:     name,
+			Email:    email,
+			Photo:    photo,
+			Password: "",
+			Role:     "pemain", // default role
+			Status:   "free",   // default status
+			FCMToken: input.FCMToken,
+		}
+
+		if err := config.DB.Create(&user).Error; err != nil {
+			response.JSONErrorResponse(c.Writer, false, http.StatusInternalServerError, "Failed to create user")
+			return
+		}
+	} else if err != nil {
+		// 🔹 Error query selain not found
+		response.JSONErrorResponse(c.Writer, false, http.StatusInternalServerError, "Database error")
+		return
+	} else {
+		// 🔹 Update FCM token
+		config.DB.Model(&user).Update("fcm_token", input.FCMToken)
+	}
+
+	// 🔹 Buat JWT
+	jwtToken, err := utils.GenerateJWT(user.ID, user.Email)
+	if err != nil {
+		response.JSONErrorResponse(c.Writer, false, http.StatusInternalServerError, "Failed to create token")
+		return
+	}
+
+	// 🔹 Hapus password dari response
+	user.Password = ""
+
+	// 🔹 Cek apakah profil belum lengkap
+	mustCompleteProfile := user.Gender == "" || user.Address == "" || user.BirthDate == ""
+
+	// 🔹 Kirim response
+	response.JSONSuccess(c.Writer, true, http.StatusOK, gin.H{
+		"user":                  user,
+		"token":                 jwtToken,
+		"must_complete_profile": mustCompleteProfile,
+	})
 }

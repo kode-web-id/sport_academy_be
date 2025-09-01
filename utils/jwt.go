@@ -18,3 +18,31 @@ func GenerateJWT(userID uint, email string) (string, error) {
 	secret := os.Getenv("JWT_SECRET")
 	return token.SignedString([]byte(secret))
 }
+
+func GenerateTokens(userID uint, email string) (string, string, error) {
+	// Access token: 15 menit
+	accessClaims := jwt.MapClaims{
+		"user_id": userID,
+		"email":   email,
+		"exp":     time.Now().Add(15 * time.Minute).Unix(),
+	}
+	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
+	accessSigned, err := accessToken.SignedString([]byte(os.Getenv("JWT_SECRET")))
+	if err != nil {
+		return "", "", err
+	}
+
+	// Refresh token: 7 hari
+	refreshClaims := jwt.MapClaims{
+		"user_id": userID,
+		"email":   email,
+		"exp":     time.Now().Add(7 * 24 * time.Hour).Unix(),
+	}
+	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
+	refreshSigned, err := refreshToken.SignedString([]byte(os.Getenv("JWT_SECRET")))
+	if err != nil {
+		return "", "", err
+	}
+
+	return accessSigned, refreshSigned, nil
+}

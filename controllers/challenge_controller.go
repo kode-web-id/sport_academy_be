@@ -126,9 +126,10 @@ func GetChallengeLogs(c *gin.Context) {
 	var challengeLogs []models.ChallengeLog
 	query := config.DB.Model(&models.ChallengeLog{})
 
-	if user.Role == "member" {
+	switch user.Role {
+	case "member":
 		query = query.Where("user_id = ?", user.ID)
-	} else if user.Role == "pelatih" {
+	case "pelatih":
 		// ambil semua user di vendor yang sama
 		var userIDs []uint
 		config.DB.Model(&models.User{}).

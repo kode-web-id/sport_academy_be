@@ -14,6 +14,9 @@ func main() {
 	// Menghubungkan ke database
 	config.ConnectDatabase()
 
+	// 2️⃣ Inisialisasi Firebase
+	config.InitFirebase()
+
 	// Membuat instance gin router
 	r := gin.Default()
 

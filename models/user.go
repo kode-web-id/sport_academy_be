@@ -21,4 +21,5 @@ type User struct {
 	Number      int     `json:"number"`       // nomor punggung
 	AgeCategory string  `json:"age_category"` // contoh: "U-12", "U-17"
 	Star        float64 `json:"star"`
+	FCMToken    string  `json:"fcm_token"`
 }

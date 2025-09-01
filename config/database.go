@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"ssb_api/models"
+
+	// "ssb_api/models"
 
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
@@ -38,15 +39,15 @@ func ConnectDatabase() {
 
 	// Sekarang AutoMigrate aman
 	err = DB.AutoMigrate(
-		&models.User{},
-		&models.Event{},
-		&models.Vendor{},
-		&models.Challenge{},
-		&models.ChallengeLog{},
-		&models.Payment{},
-		&models.Training{},
-		&models.Match{},
-		&models.EventLog{},
+	// &models.User{},
+	// &models.Event{},
+	// &models.Vendor{},
+	// &models.Challenge{},
+	// &models.ChallengeLog{},
+	// &models.Payment{},
+	// &models.Training{},
+	// &models.Match{},
+	// &models.EventLog{},
 	)
 	if err != nil {
 		log.Fatal("❌ AutoMigrate failed: ", err)

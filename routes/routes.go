@@ -12,6 +12,9 @@ func SetupRoutes(router *gin.Engine) {
 	{
 		// Public routes
 		api.POST("/login", controllers.Login)
+		api.POST("/auth/firebase", controllers.FirebaseLogin)
+
+		api.POST("/refresh-token", controllers.RefreshToken)
 		api.POST("/register", controllers.Register)
 		api.GET("/vendor", controllers.GetVendors)
 		api.POST("/vendor/create", controllers.CreateVendor)

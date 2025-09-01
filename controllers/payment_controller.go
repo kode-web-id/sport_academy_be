@@ -168,6 +168,11 @@ func CreateBulkPaymentByEvent(c *gin.Context) {
 		}
 		if err := config.DB.Create(&payment).Error; err == nil {
 			createdPayments = append(createdPayments, payment)
+			if user.FCMToken != "" {
+				title := "Tagihan Baru"
+				body := fmt.Sprintf("Hai %s, ada tagihan baru untuk kamu.", user.Name)
+				go utils.CreateNotification(uid, user.FCMToken, title, body, "payment") // pakai goroutine
+			}
 		}
 	}
 
