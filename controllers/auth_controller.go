@@ -225,24 +225,13 @@ func FirebaseLogin(c *gin.Context) {
 	err = config.DB.First(&user, "email = ?", email).Error
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		// 🆕 User baru
-		user = models.User{
-			Name:     name,
-			Email:    email,
-			Photo:    photo,
-			Password: "",
-			Role:     "pemain", // default role
-			Status:   "free",   // default status
-			FCMToken: input.FCMToken,
-		}
-
-		if err := config.DB.Create(&user).Error; err != nil {
-			response.JSONErrorResponse(c.Writer, false, http.StatusInternalServerError, "Failed to create user")
-			return
-		}
-	} else if err != nil {
-		// 🔹 Error query selain not found
-		response.JSONErrorResponse(c.Writer, false, http.StatusInternalServerError, "Database error")
+		// User belum ada → lempar ke FE buat register
+		response.JSONSuccess(c.Writer, true, http.StatusOK, gin.H{
+			"need_register": true,
+			"email":         email,
+			"name":          name,
+			"photo":         photo,
+		})
 		return
 	} else {
 		// 🔹 Update FCM token

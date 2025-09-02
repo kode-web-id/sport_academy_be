@@ -13,7 +13,7 @@ type Payment struct {
 	Type     string  `json:"type"`   // general, event
 	Date     string  `json:"date"`
 	Note     string  `json:"note"`
-	Photo    string  `json:"photo"`
+	Photo    string  `json:"photo,omitempty"`
 	Invoice  string  `json:"invoice"` // ← new column
 	UserName string  `json:"user_name"`
 }
@@ -28,6 +28,6 @@ type PaymentRequest struct {
 	Type     string  `form:"type"`
 	Date     string  `form:"date"`
 	Note     string  `form:"note"`
-	UserName string  `json:"user_name"`
+	UserName string  `form:"user_name"`
 	Invoice  string  `form:"invoice"` // ← new field
 }

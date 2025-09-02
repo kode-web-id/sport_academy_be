@@ -24,7 +24,7 @@ func GenerateTokens(userID uint, email string) (string, string, error) {
 	accessClaims := jwt.MapClaims{
 		"user_id": userID,
 		"email":   email,
-		"exp":     time.Now().Add(15 * time.Minute).Unix(),
+		"exp":     time.Now().Add(6 * time.Hour).Unix(),
 	}
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
 	accessSigned, err := accessToken.SignedString([]byte(os.Getenv("JWT_SECRET")))
@@ -36,7 +36,7 @@ func GenerateTokens(userID uint, email string) (string, string, error) {
 	refreshClaims := jwt.MapClaims{
 		"user_id": userID,
 		"email":   email,
-		"exp":     time.Now().Add(7 * 24 * time.Hour).Unix(),
+		"exp":     time.Now().Add(14 * 24 * time.Hour).Unix(),
 	}
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
 	refreshSigned, err := refreshToken.SignedString([]byte(os.Getenv("JWT_SECRET")))

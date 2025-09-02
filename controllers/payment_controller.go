@@ -38,12 +38,19 @@ func CreatePayment(c *gin.Context) {
 	// Get UserID from JWT token
 
 	userID := input.UserID
+	var eventID *uint
+	if input.EventID != nil && *input.EventID != 0 {
+		eventID = input.EventID
+	} else {
+		eventID = nil
+	}
+
 	// Mengonversi PaymentRequest ke Payment
 	payment := models.Payment{
 		UserID:   userID,
 		UserName: input.UserName,
 		VendorID: input.VendorID,
-		EventID:  input.EventID,
+		EventID:  eventID,
 		Amount:   input.Amount,
 		Method:   input.Method,
 		Status:   input.Status,
@@ -60,37 +67,45 @@ func CreatePayment(c *gin.Context) {
 		return
 	}
 
-	// Memeriksa apakah ada file photo yang di-upload via form-data
+	// Cek apakah ada file photo
 	file, err := c.FormFile("photo")
-	if err != nil {
-		response.JSONErrorResponse(c.Writer, false, http.StatusBadRequest, "No file is attached")
-		return
+	if err == nil {
+		// Ada file, proses simpan
+		fmt.Println("Uploaded Photo Filename:", file.Filename)
+
+		// Buat direktori tujuan
+		dstDir := fmt.Sprintf("./uploads/payment/%d/%s/%d", payment.VendorID, payment.Type, userID)
+		if err := os.MkdirAll(dstDir, os.ModePerm); err != nil {
+			response.JSONErrorResponse(c.Writer, false, http.StatusInternalServerError, "Failed to create directory for payment photo")
+			return
+		}
+
+		// Nama file: payment_userid_eventid_timestamp.ext
+		eventPart := "noevent"
+		if payment.EventID != nil {
+			eventPart = fmt.Sprintf("%d", *payment.EventID)
+		}
+
+		filename := fmt.Sprintf(
+			"payment_%d_%s_%d%s",
+			userID,
+			eventPart,
+			time.Now().Unix(),
+			filepath.Ext(file.Filename),
+		)
+
+		dst := fmt.Sprintf("%s/%s", dstDir, filename)
+
+		if err := c.SaveUploadedFile(file, dst); err != nil {
+			response.JSONErrorResponse(c.Writer, false, http.StatusInternalServerError, "Failed to save file")
+			return
+		}
+
+		payment.Photo = dst
+	} else {
+		// Tidak ada file, biarkan kosong
+		payment.Photo = ""
 	}
-
-	// Print atau log nama file yang di-upload
-	fmt.Println("Uploaded Photo Filename:", file.Filename)
-
-	// Membuat struktur direktori berdasarkan vendor_id, type_payment, dan user_id
-	dstDir := fmt.Sprintf("./uploads/payment/%d/%s/%d", payment.VendorID, payment.Type, userID)
-	if err := os.MkdirAll(dstDir, os.ModePerm); err != nil {
-		response.JSONErrorResponse(c.Writer, false, http.StatusInternalServerError, "Failed to create directory for payment photo")
-		return
-	}
-
-	// Membuat nama file sebagai payment_user_id_event_id
-	filename := fmt.Sprintf("payment_%d_%d_%d%s", userID, *payment.EventID, time.Now().Unix(), filepath.Ext(file.Filename))
-
-	// Menentukan lokasi file tujuan
-	dst := fmt.Sprintf("%s/%s", dstDir, filename)
-
-	// Menyimpan file yang di-upload ke tujuan
-	if err := c.SaveUploadedFile(file, dst); err != nil {
-		response.JSONErrorResponse(c.Writer, false, http.StatusInternalServerError, "Failed to save file")
-		return
-	}
-
-	// Update path foto pada record pembayaran
-	payment.Photo = dst
 
 	// Menyimpan record pembayaran ke dalam database
 	if err := config.DB.Create(&payment).Error; err != nil {

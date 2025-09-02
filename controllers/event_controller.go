@@ -34,6 +34,46 @@ func CreateEvent(c *gin.Context) {
 	response.JSONSuccess(c.Writer, true, http.StatusCreated, input)
 }
 
+func UpdateEvent(c *gin.Context) {
+	// Ambil ID event dari URL param
+	eventID := c.Param("id")
+	var input models.Event
+
+	// Bind JSON body
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response.JSONErrorResponse(c.Writer, false, http.StatusBadRequest, "Invalid request")
+		return
+	}
+
+	// Cari event yang akan diupdate
+	var event models.Event
+	if err := config.DB.Where("id = ?", eventID).First(&event).Error; err != nil {
+		response.JSONErrorResponse(c.Writer, false, http.StatusNotFound, "Event not found")
+		return
+	}
+
+	// Update field yang diizinkan
+	event.Title = input.Title
+	event.Description = input.Description
+	event.Location = input.Location
+	event.LocationPoint = input.LocationPoint
+	event.EventType = input.EventType
+	event.IsPaid = input.IsPaid
+	event.Fee = input.Fee
+	event.Date = input.Date
+	event.Time = input.Time
+
+	// tambah field lain sesuai kebutuhan
+
+	// Simpan perubahan
+	if err := config.DB.Save(&event).Error; err != nil {
+		response.JSONErrorResponse(c.Writer, false, http.StatusInternalServerError, "Failed to update event")
+		return
+	}
+
+	response.JSONSuccess(c.Writer, true, http.StatusOK, event)
+}
+
 func GetEvents(c *gin.Context) {
 	page := c.DefaultQuery("page", "1")
 	limit := c.DefaultQuery("limit", "10")
