@@ -5,7 +5,7 @@ import "gorm.io/gorm"
 type Payment struct {
 	gorm.Model
 	UserID   uint    `json:"user_id"`
-	VendorID uint    `json:"vendor_id"`
+	VendorID *uint   `json:"vendor_id"`
 	EventID  *uint   `json:"event_id"` // nullable
 	Amount   float64 `json:"amount"`
 	Method   string  `json:"method"` // cash, transfer, e-wallet
@@ -20,7 +20,7 @@ type Payment struct {
 
 type PaymentRequest struct {
 	UserID   uint    `form:"user_id"`
-	VendorID uint    `form:"vendor_id"`
+	VendorID *uint   `form:"vendor_id"`
 	EventID  *uint   `form:"event_id"`
 	Amount   float64 `form:"amount"`
 	Method   string  `form:"method"`

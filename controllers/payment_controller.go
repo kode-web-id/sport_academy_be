@@ -18,7 +18,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func generateInvoiceNumber(userID, vendorID uint) string {
+func generateInvoiceNumber(userID uint, vendorID *uint) string {
 	return fmt.Sprintf("INV-%d%d%d", vendorID, userID, time.Now().UnixNano())
 }
 func CreatePayment(c *gin.Context) {
@@ -171,7 +171,7 @@ func CreateBulkPaymentByEvent(c *gin.Context) {
 		payment := models.Payment{
 			UserID:   uid,
 			UserName: user.Name, // <-- tambahkan user name
-			VendorID: input.VendorID,
+			VendorID: &input.VendorID,
 			EventID:  &input.EventID,
 			Amount:   input.Amount,
 			Method:   input.Method,
@@ -179,7 +179,7 @@ func CreateBulkPaymentByEvent(c *gin.Context) {
 			Type:     input.Type,
 			Date:     input.Date,
 			Note:     input.Note,
-			Invoice:  generateInvoiceNumber(uid, input.VendorID),
+			Invoice:  generateInvoiceNumber(uid, &input.VendorID),
 		}
 		if err := config.DB.Create(&payment).Error; err == nil {
 			createdPayments = append(createdPayments, payment)

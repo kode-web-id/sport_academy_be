@@ -57,7 +57,7 @@ func Register(c *gin.Context) {
 	input.Password = hashed
 
 	// Fetch vendor if ada
-	if input.VendorID != 0 {
+	if input.VendorID != nil {
 		var vendor models.Vendor
 		if err := config.DB.First(&vendor, input.VendorID).Error; err != nil {
 			response.JSONErrorResponse(c.Writer, false, http.StatusNotFound, "Vendor not found")

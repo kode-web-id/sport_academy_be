@@ -14,7 +14,7 @@ type User struct {
 	Gender      string  `json:"gender"`     // "Laki-laki", "Perempuan"
 	BirthDate   string  `json:"birth_date"` // format: YYYY-MM-DD
 	Status      string  `json:"status"`     // "free" atau "pro"
-	VendorID    uint    `json:"vendor_id"`
+	VendorID    *uint   `json:"vendor_id"`
 	Vendor      Vendor  `gorm:"foreignKey:VendorID"`
 	Position    string  `json:"position"`     // posisi bermain
 	Foot        string  `json:"foot"`         // "Kanan" atau "Kiri"

@@ -34,7 +34,7 @@ func GetUserFromToken(c *gin.Context) {
 		response.JSONErrorResponse(c.Writer, false, http.StatusNotFound, "User not found")
 		return
 	}
-	if user.VendorID != 0 {
+	if user.VendorID != nil {
 		var vendor models.Vendor
 		if err := config.DB.First(&vendor, user.VendorID).Error; err != nil {
 			response.JSONErrorResponse(c.Writer, false, http.StatusNotFound, "Vendor not found")
@@ -475,13 +475,13 @@ func UpdateUser(c *gin.Context) {
 	}
 
 	// Update vendor jika berbeda
-	if input.VendorID != 0 && input.VendorID != user.VendorID {
+	if input.VendorID != nil && input.VendorID != user.VendorID {
 		var vendor models.Vendor
 		if err := config.DB.First(&vendor, input.VendorID).Error; err != nil {
 			response.JSONErrorResponse(c.Writer, false, http.StatusNotFound, "Vendor not found")
 			return
 		}
-		user.VendorID = vendor.ID
+		user.VendorID = &vendor.ID
 	}
 
 	// Simpan perubahan
