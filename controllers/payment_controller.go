@@ -401,16 +401,6 @@ func GetPaymentsByVendor(c *gin.Context) {
 		return
 	}
 
-	eventIDStr := c.Query("event_id")
-	var eventID uint64
-	if eventIDStr != "" {
-		eventID, err = strconv.ParseUint(eventIDStr, 10, 64)
-		if err != nil {
-			response.JSONErrorResponse(c.Writer, false, http.StatusBadRequest, "invalid event_id")
-			return
-		}
-	}
-
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	offset := (page - 1) * limit
@@ -423,9 +413,6 @@ func GetPaymentsByVendor(c *gin.Context) {
 	// ======= Build query with filters =======
 	q := config.DB.Model(&models.Payment{}).Where("vendor_id = ?", vendorID)
 
-	if eventIDStr != "" {
-		q = q.Where("event_id = ?", eventID)
-	}
 	if s := c.Query("search"); s != "" {
 		q = q.Where("LOWER(note) LIKE ?", "%"+strings.ToLower(s)+"%")
 	}
@@ -440,6 +427,10 @@ func GetPaymentsByVendor(c *gin.Context) {
 	}
 	if e := c.Query("end_date"); e != "" {
 		q = q.Where("date <= ?", e)
+	}
+	// ✅ Filter baru: event_id
+	if eid := c.Query("event_id"); eid != "" {
+		q = q.Where("event_id = ?", eid)
 	}
 
 	// ======= Execute query =======
