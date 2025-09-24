@@ -429,8 +429,15 @@ func GetPaymentsByVendor(c *gin.Context) {
 		q = q.Where("date <= ?", e)
 	}
 	// ✅ Filter baru: event_id
+	// ✅ Filter event_id dengan parsing ke int
 	if eid := c.Query("event_id"); eid != "" {
-		q = q.Where("event_id = ?", eid)
+		id, err := strconv.Atoi(eid)
+		if err != nil {
+			response.JSONErrorResponse(c.Writer, false, http.StatusBadRequest, "invalid event_id")
+			return
+		}
+		// hanya ambil baris dengan event_id = id (bukan NULL)
+		q = q.Where("event_id = ?", id)
 	}
 
 	// ======= Execute query =======
