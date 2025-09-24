@@ -389,77 +389,72 @@ func GetPayments(c *gin.Context) {
 }
 
 func GetPaymentsByVendor(c *gin.Context) {
+	// ===== Query param parsing =====
 	vendorIDStr := c.Query("vendor_id")
 	if vendorIDStr == "" {
-		response.JSONErrorResponse(c.Writer, false, http.StatusBadRequest, "Vendor ID is required")
+		response.JSONErrorResponse(c.Writer, false, http.StatusBadRequest, "vendor_id is required")
 		return
 	}
-
 	vendorID, err := strconv.ParseUint(vendorIDStr, 10, 64)
 	if err != nil {
-		response.JSONErrorResponse(c.Writer, false, http.StatusBadRequest, "Invalid vendor ID")
+		response.JSONErrorResponse(c.Writer, false, http.StatusBadRequest, "invalid vendor_id")
 		return
 	}
 
-	limitStr := c.DefaultQuery("limit", "10")
-	pageStr := c.DefaultQuery("page", "1")
-	search := c.Query("search")
+	eventIDStr := c.Query("event_id") // <- tambahan
+	var eventID uint64
+	if eventIDStr != "" {
+		if eventID, err = strconv.ParseUint(eventIDStr, 10, 64); err != nil {
+			response.JSONErrorResponse(c.Writer, false, http.StatusBadRequest, "invalid event_id")
+			return
+		}
+	}
 
-	status := c.Query("status")
-	startDate := c.Query("start_date")
-	endDate := c.Query("end_date")
-	userName := c.Query("user_name")
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	offset := (page - 1) * limit
 	sortBy := c.DefaultQuery("sort_by", "created_at")
 	sortOrder := strings.ToUpper(c.DefaultQuery("sort_order", "DESC"))
-
-	if sortOrder != "ASC" && sortOrder != "DESC" {
+	if sortOrder != "ASC" {
 		sortOrder = "DESC"
 	}
 
-	limit, _ := strconv.Atoi(limitStr)
-	page, _ := strconv.Atoi(pageStr)
-	offset := (page - 1) * limit
+	// ===== Filters =====
+	q := config.DB.Model(&models.Payment{}).Where("vendor_id = ?", vendorID)
 
+	if eventIDStr != "" {
+		q = q.Where("event_id = ?", eventID) // filter event jika ada
+	}
+	if s := c.Query("search"); s != "" {
+		q = q.Where("LOWER(note) LIKE ?", "%"+strings.ToLower(s)+"%")
+	}
+	if s := c.Query("status"); s != "" {
+		q = q.Where("status = ?", s)
+	}
+	if u := c.Query("user_name"); u != "" {
+		q = q.Where("user_name ILIKE ?", "%"+u+"%")
+	}
+	if s := c.Query("start_date"); s != "" {
+		q = q.Where("date >= ?", s)
+	}
+	if e := c.Query("end_date"); e != "" {
+		q = q.Where("date <= ?", e)
+	}
+
+	// ===== Query & response =====
 	var payments []models.Payment
-	query := config.DB.Where("vendor_id = ?", vendorID)
-
-	// Filtering
-
-	if search != "" {
-		like := "%" + strings.ToLower(search) + "%"
-		query = query.Where("LOWER(note) LIKE ?", like)
-	}
-
-	if status != "" {
-		query = query.Where("status = ?", status)
-	}
-
-	if userName != "" {
-		query = query.Where("user_name ILIKE ?", "%"+userName+"%")
-	}
-
-	if startDate != "" {
-		query = query.Where("date >= ?", startDate)
-	}
-	if endDate != "" {
-		query = query.Where("date <= ?", endDate)
-	}
-
-	// Execute query
-	if err := query.
-		Order(fmt.Sprintf("%s %s", sortBy, sortOrder)).
-		Limit(limit).
-		Offset(offset).
+	if err := q.Order(fmt.Sprintf("%s %s", sortBy, sortOrder)).
+		Limit(limit).Offset(offset).
 		Find(&payments).Error; err != nil {
-		response.JSONErrorResponse(c.Writer, false, http.StatusInternalServerError, "Failed to fetch vendor payments")
+		response.JSONErrorResponse(c.Writer, false, http.StatusInternalServerError, "failed to fetch payments")
 		return
 	}
 
-	// Add full photo path
-	baseURL := utils.DotEnv("BASE_URL_F")
+	// Path photo
+	base := utils.DotEnv("BASE_URL_F")
 	for i := range payments {
 		if payments[i].Photo != "" {
-			payments[i].Photo = baseURL + "/" + strings.TrimPrefix(payments[i].Photo, "./")
+			payments[i].Photo = base + "/" + strings.TrimPrefix(payments[i].Photo, "./")
 		}
 	}
 
