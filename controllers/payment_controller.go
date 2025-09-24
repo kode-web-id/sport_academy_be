@@ -389,7 +389,7 @@ func GetPayments(c *gin.Context) {
 }
 
 func GetPaymentsByVendor(c *gin.Context) {
-	// ===== Query param parsing =====
+	// ======= Parsing query param =======
 	vendorIDStr := c.Query("vendor_id")
 	if vendorIDStr == "" {
 		response.JSONErrorResponse(c.Writer, false, http.StatusBadRequest, "vendor_id is required")
@@ -401,10 +401,11 @@ func GetPaymentsByVendor(c *gin.Context) {
 		return
 	}
 
-	eventIDStr := c.Query("event_id") // <- tambahan
+	eventIDStr := c.Query("event_id")
 	var eventID uint64
 	if eventIDStr != "" {
-		if eventID, err = strconv.ParseUint(eventIDStr, 10, 64); err != nil {
+		eventID, err = strconv.ParseUint(eventIDStr, 10, 64)
+		if err != nil {
 			response.JSONErrorResponse(c.Writer, false, http.StatusBadRequest, "invalid event_id")
 			return
 		}
@@ -419,11 +420,11 @@ func GetPaymentsByVendor(c *gin.Context) {
 		sortOrder = "DESC"
 	}
 
-	// ===== Filters =====
+	// ======= Build query with filters =======
 	q := config.DB.Model(&models.Payment{}).Where("vendor_id = ?", vendorID)
 
 	if eventIDStr != "" {
-		q = q.Where("event_id = ?", eventID) // filter event jika ada
+		q = q.Where("event_id = ?", eventID)
 	}
 	if s := c.Query("search"); s != "" {
 		q = q.Where("LOWER(note) LIKE ?", "%"+strings.ToLower(s)+"%")
@@ -441,20 +442,21 @@ func GetPaymentsByVendor(c *gin.Context) {
 		q = q.Where("date <= ?", e)
 	}
 
-	// ===== Query & response =====
+	// ======= Execute query =======
 	var payments []models.Payment
 	if err := q.Order(fmt.Sprintf("%s %s", sortBy, sortOrder)).
-		Limit(limit).Offset(offset).
+		Limit(limit).
+		Offset(offset).
 		Find(&payments).Error; err != nil {
-		response.JSONErrorResponse(c.Writer, false, http.StatusInternalServerError, "failed to fetch payments")
+		response.JSONErrorResponse(c.Writer, false, http.StatusInternalServerError, "failed to fetch vendor payments")
 		return
 	}
 
-	// Path photo
-	base := utils.DotEnv("BASE_URL_F")
+	// ======= Post-process photo path =======
+	baseURL := utils.DotEnv("BASE_URL_F")
 	for i := range payments {
 		if payments[i].Photo != "" {
-			payments[i].Photo = base + "/" + strings.TrimPrefix(payments[i].Photo, "./")
+			payments[i].Photo = baseURL + "/" + strings.TrimPrefix(payments[i].Photo, "./")
 		}
 	}
 
