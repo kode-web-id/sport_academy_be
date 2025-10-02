@@ -225,7 +225,7 @@ func FirebaseLogin(c *gin.Context) {
 	err = config.DB.First(&user, "email = ?", email).Error
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		// User belum ada → lempar ke FE buat register
+		// User belum ada → FE harus register
 		response.JSONSuccess(c.Writer, true, http.StatusOK, gin.H{
 			"need_register": true,
 			"email":         email,
@@ -233,28 +233,48 @@ func FirebaseLogin(c *gin.Context) {
 			"photo":         photo,
 		})
 		return
-	} else {
-		// 🔹 Update FCM token
+	}
+
+	// 🔹 Update FCM token jika ada
+	if input.FCMToken != "" {
 		config.DB.Model(&user).Update("fcm_token", input.FCMToken)
 	}
 
-	// 🔹 Buat JWT
-	jwtToken, err := utils.GenerateJWT(user.ID, user.Email)
+	// 🔹 Generate JWT
+	accessToken, refreshToken, err := utils.GenerateTokens(user.ID, user.Email)
 	if err != nil {
 		response.JSONErrorResponse(c.Writer, false, http.StatusInternalServerError, "Failed to create token")
 		return
 	}
 
-	// 🔹 Hapus password dari response
+	// 🔹 Bersihkan password dari response
 	user.Password = ""
+	baseURL := utils.DotEnv("BASE_URL_F")
+	if user.Photo != "" {
+		user.Photo = baseURL + "/" + strings.TrimPrefix(user.Photo, "./")
+	}
 
-	// 🔹 Cek apakah profil belum lengkap
-	mustCompleteProfile := user.Gender == "" || user.Address == "" || user.BirthDate == ""
+	// 🔹 Cek apakah user harus lengkapi profil
+	mustCompleteProfile := user.VendorID == nil || *user.VendorID == 0
 
-	// 🔹 Kirim response
-	response.JSONSuccess(c.Writer, true, http.StatusOK, gin.H{
-		"user":                  user,
-		"token":                 jwtToken,
+	// 🔹 Response sama dengan login biasa
+	result := gin.H{
+		"user": gin.H{
+			"id":        user.ID,
+			"name":      user.Name,
+			"email":     user.Email,
+			"role":      user.Role,
+			"phone":     user.Phone,
+			"address":   user.Address,
+			"gender":    user.Gender,
+			"birthDate": user.BirthDate,
+			"photo":     user.Photo,
+			"vendor_id": user.VendorID,
+		},
+		"token":                 accessToken,
+		"refresh_token":         refreshToken,
 		"must_complete_profile": mustCompleteProfile,
-	})
+	}
+
+	response.JSONSuccess(c.Writer, true, http.StatusOK, result)
 }
