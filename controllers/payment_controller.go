@@ -501,11 +501,11 @@ func UpdatePaymentStatus(c *gin.Context) {
 		return
 	}
 
-	// Check if the payment belongs to the same vendor as the logged-in trainer
-	if payment.VendorID != user.VendorID {
-		response.JSONErrorResponse(c.Writer, false, http.StatusForbidden, "You can only update payments for your own vendor")
-		return
-	}
+	// // Check if the payment belongs to the same vendor as the logged-in trainer
+	// if payment.VendorID != user.VendorID {
+	// 	response.JSONErrorResponse(c.Writer, false, http.StatusForbidden, "You can only update payments for your own vendor")
+	// 	return
+	// }
 
 	// Update the payment status
 	payment.Status = input.Status
