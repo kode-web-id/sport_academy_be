@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"regexp"
@@ -277,4 +278,48 @@ func FirebaseLogin(c *gin.Context) {
 	}
 
 	response.JSONSuccess(c.Writer, true, http.StatusOK, result)
+}
+
+func RedirectToApp(c *gin.Context) {
+	id := c.Param("id")
+	userAgent := c.GetHeader("User-Agent")
+
+	// ✅ Deteksi platform user
+	isAndroid := strings.Contains(strings.ToLower(userAgent), "android")
+	isIOS := strings.Contains(strings.ToLower(userAgent), "iphone") || strings.Contains(strings.ToLower(userAgent), "ipad")
+
+	// URL Play Store / App Store fallback
+	playStoreURL := "https://play.google.com/store/apps/details?id=one.team"
+	appStoreURL := "https://apps.apple.com/app/idYOUR_APP_ID" // opsional
+
+	// Intent scheme (khusus Android)
+	intentURL := fmt.Sprintf(
+		"intent://event/%s#Intent;scheme=oneteam;package=one.team;S.browser_fallback_url=%s;end",
+		id, playStoreURL,
+	)
+
+	if isAndroid {
+		// 🔁 Redirect ke intent:// biar Android langsung buka app
+		c.Redirect(http.StatusFound, intentURL)
+		return
+	}
+
+	if isIOS {
+		// 🍎 iOS redirect ke Universal Link (kalau sudah setup)
+		// kalau belum, fallback ke App Store
+		c.Redirect(http.StatusFound, appStoreURL)
+		return
+	}
+
+	// 🌐 fallback umum (PC, browser, dsb)
+	c.String(http.StatusOK, fmt.Sprintf(`
+		<html>
+		<head>
+			<meta http-equiv="refresh" content="0; url=%s" />
+		</head>
+		<body>
+			<p>Jika tidak terbuka otomatis, klik di sini: <a href="%s">Buka di aplikasi OneTeam</a></p>
+		</body>
+		</html>
+	`, intentURL, intentURL))
 }
