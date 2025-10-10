@@ -197,31 +197,49 @@ func CreateEventLog(c *gin.Context) {
 	}
 
 	// Pastikan Vendor dan Event ada
-	if err := config.DB.Where("id = ?", input.VendorID).First(&models.Vendor{}).Error; err != nil {
+	if err := config.DB.First(&models.Vendor{}, input.VendorID).Error; err != nil {
 		response.JSONErrorResponse(c.Writer, false, http.StatusNotFound, "Vendor not found")
 		return
 	}
-	var event models.Event
-	if err := config.DB.First(&event, input.EventID).Error; err != nil {
+	if err := config.DB.First(&models.Event{}, input.EventID).Error; err != nil {
 		response.JSONErrorResponse(c.Writer, false, http.StatusNotFound, "Event not found")
 		return
 	}
 
-	// Cek apakah EventLog dengan kombinasi UserID dan EventID sudah ada
+	// Cek apakah EventLog sudah ada
 	var existing models.EventLog
 	if err := config.DB.Where("user_id = ? AND event_id = ?", input.UserID, input.EventID).First(&existing).Error; err == nil {
 		response.JSONErrorResponse(c.Writer, false, http.StatusBadRequest, "Event log already exists for this user and event")
 		return
 	}
 
-	// Menyimpan EventLog baru
+	// Buat log baru
+	input.Status = true // otomatis true saat pertama kali dibuat
 	if err := config.DB.Create(&input).Error; err != nil {
 		response.JSONErrorResponse(c.Writer, false, http.StatusInternalServerError, "Failed to create event log")
 		return
 	}
 
-	response.JSONSuccess(c.Writer, true, http.StatusCreated, input)
+	// Update counter user langsung
+	var user models.User
+	if err := config.DB.First(&user, input.UserID).Error; err == nil {
+		switch strings.ToLower(input.EventType) {
+		case "match":
+			user.Match += 1
+		case "training":
+			user.Training += 1
+		case "program":
+			user.Program += 1
+		}
+		config.DB.Save(&user)
+	}
+
+	response.JSONSuccess(c.Writer, true, http.StatusCreated, gin.H{
+		"message":   "Event log created successfully",
+		"event_log": input,
+	})
 }
+
 func UpdateEventLogStatus(c *gin.Context) {
 	var input struct {
 		ID     uint   `json:"id"`     // ID event log
@@ -241,54 +259,43 @@ func UpdateEventLogStatus(c *gin.Context) {
 		return
 	}
 
-	// Simpan status lama dulu
 	oldStatus := eventLog.Status
 
-	// Update log
 	eventLog.Status = input.Status
 	eventLog.Note = input.Note
-
 	if err := config.DB.Save(&eventLog).Error; err != nil {
 		response.JSONErrorResponse(c.Writer, false, http.StatusInternalServerError, "Failed to update log")
 		return
 	}
 
-	// Jika status berubah, update counter di tabel user
+	// Hanya update counter jika status berubah
 	if oldStatus != input.Status {
 		var user models.User
 		if err := config.DB.First(&user, eventLog.UserID).Error; err == nil {
 			switch strings.ToLower(eventLog.EventType) {
 			case "match":
 				if input.Status {
-					user.Match += 1
-				} else {
-					if user.Match > 0 {
-						user.Match -= 1
-					}
+					user.Match++
+				} else if user.Match > 0 {
+					user.Match--
 				}
 			case "training":
 				if input.Status {
-					user.Training += 1
-				} else {
-					if user.Training > 0 {
-						user.Training -= 1
-					}
+					user.Training++
+				} else if user.Training > 0 {
+					user.Training--
 				}
 			case "program":
 				if input.Status {
-					user.Program += 1
-				} else {
-					if user.Program > 0 {
-						user.Program -= 1
-					}
+					user.Program++
+				} else if user.Program > 0 {
+					user.Program--
 				}
 			}
-
 			config.DB.Save(&user)
 		}
 	}
 
-	// Response sukses
 	response.JSONSuccess(c.Writer, true, http.StatusOK, gin.H{
 		"message":   "Event log updated successfully",
 		"event_log": eventLog,
