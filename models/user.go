@@ -22,4 +22,8 @@ type User struct {
 	AgeCategory string  `json:"age_category"` // contoh: "U-12", "U-17"
 	Star        float64 `json:"star"`
 	FCMToken    string  `json:"fcm_token"`
+	Active      bool    `json:"active" gorm:"default:false"`
+	Match       int     `json:"match"`
+	Training    int     `json:"training"`
+	Program     int     `json:"program"`
 }

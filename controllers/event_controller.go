@@ -223,38 +223,76 @@ func CreateEventLog(c *gin.Context) {
 	response.JSONSuccess(c.Writer, true, http.StatusCreated, input)
 }
 func UpdateEventLogStatus(c *gin.Context) {
-	// Define struct for request body
 	var input struct {
-		ID     uint   `json:"id"`     // ID dari event log yang akan diupdate
-		Status bool   `json:"status"` // Status baru untuk event log
+		ID     uint   `json:"id"`     // ID event log
+		Status bool   `json:"status"` // status baru
 		Note   string `json:"note"`
 	}
 
-	// Bind the request body to input struct
 	if err := c.ShouldBindJSON(&input); err != nil {
-		response.JSONErrorResponse(c.Writer, false, http.StatusBadRequest, "Invalid request")
+		response.JSONErrorResponse(c.Writer, false, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
-	// Fetch event log based on the ID from input
+	// Cari event log
 	var eventLog models.EventLog
 	if err := config.DB.First(&eventLog, input.ID).Error; err != nil {
 		response.JSONErrorResponse(c.Writer, false, http.StatusNotFound, "Event log not found")
 		return
 	}
 
-	// Update the status of the event log
+	// Simpan status lama dulu
+	oldStatus := eventLog.Status
+
+	// Update log
 	eventLog.Status = input.Status
 	eventLog.Note = input.Note
 
-	// Save the updated event log to the database
 	if err := config.DB.Save(&eventLog).Error; err != nil {
-		response.JSONErrorResponse(c.Writer, false, http.StatusInternalServerError, "Failed to update status")
+		response.JSONErrorResponse(c.Writer, false, http.StatusInternalServerError, "Failed to update log")
 		return
 	}
 
-	// Return the updated event log
-	response.JSONSuccess(c.Writer, true, http.StatusOK, eventLog)
+	// Jika status berubah, update counter di tabel user
+	if oldStatus != input.Status {
+		var user models.User
+		if err := config.DB.First(&user, eventLog.UserID).Error; err == nil {
+			switch strings.ToLower(eventLog.EventType) {
+			case "match":
+				if input.Status {
+					user.Match += 1
+				} else {
+					if user.Match > 0 {
+						user.Match -= 1
+					}
+				}
+			case "training":
+				if input.Status {
+					user.Training += 1
+				} else {
+					if user.Training > 0 {
+						user.Training -= 1
+					}
+				}
+			case "program":
+				if input.Status {
+					user.Program += 1
+				} else {
+					if user.Program > 0 {
+						user.Program -= 1
+					}
+				}
+			}
+
+			config.DB.Save(&user)
+		}
+	}
+
+	// Response sukses
+	response.JSONSuccess(c.Writer, true, http.StatusOK, gin.H{
+		"message":   "Event log updated successfully",
+		"event_log": eventLog,
+	})
 }
 
 func GetEventLogs(c *gin.Context) {
